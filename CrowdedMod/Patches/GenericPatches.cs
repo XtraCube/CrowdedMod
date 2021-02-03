@@ -67,5 +67,49 @@ namespace CrowdedMod.Patches {
                 __instance.text.Text += "\n[FFB793FF]> CrowdedMod <";
             }
         }
+		
+	[HarmonyPatch(typeof(CreateOptionsPicker), nameof(CreateOptionsPicker.Start))]
+	public static class CreateOptionsPickerStartPatch
+	{
+		public static void Postfix(CreateOptionsPicker __instance)
+		{
+			var offset = __instance.MaxPlayerButtons[1].transform.position.x -
+			             __instance.MaxPlayerButtons[0].transform.position.x;
+			var playerButtons = __instance.MaxPlayerButtons.ToList();
+				
+			var plusButton = Object.Instantiate(playerButtons.Last(), playerButtons.Last().transform.parent);
+			plusButton.GetComponentInChildren<TextRenderer>().Text = "+";
+			plusButton.name = "255";
+			plusButton.transform.position = playerButtons.Last().transform.position + new Vector3(offset*2, 0, 0);
+			var passiveButton = plusButton.GetComponent<PassiveButton>();
+			passiveButton.OnClick.m_PersistentCalls.Clear();
+			passiveButton.OnClick.AddListener((UnityAction)plusListener);
+			void plusListener()
+			{
+				var targetOptions = __instance.GetTargetOptions();
+				targetOptions.MaxPlayers = Mathf.Clamp(targetOptions.MaxPlayers + 1, 4, 20);
+				plusButton.name = targetOptions.MaxPlayers.ToString();
+				__instance.SetMaxPlayersButtons(targetOptions.MaxPlayers);
+			}
+			var minusButton = Object.Instantiate(playerButtons.Last(), playerButtons.Last().transform.parent);
+			minusButton.GetComponentInChildren<TextRenderer>().Text = "-";
+			minusButton.name = "255";
+			minusButton.transform.position = playerButtons.First().transform.position;
+			var minusPassiveButton = minusButton.GetComponent<PassiveButton>();
+			minusPassiveButton.OnClick.m_PersistentCalls.Clear();
+			minusPassiveButton.OnClick.AddListener((UnityAction)listener);
+			void listener()
+			{
+				var targetOptions = __instance.GetTargetOptions();
+				targetOptions.MaxPlayers = Mathf.Clamp(targetOptions.MaxPlayers - 1, 4, 20);
+				minusButton.name = targetOptions.MaxPlayers.ToString();
+				__instance.SetMaxPlayersButtons(targetOptions.MaxPlayers);
+			}
+			playerButtons.ForEach(x => x.transform.position += new Vector3(offset, 0, 0));
+			playerButtons.Insert(0, minusButton);
+			playerButtons.Add(plusButton);
+			__instance.MaxPlayerButtons = playerButtons.ToArray();
+		}
+	}
     }
 }
